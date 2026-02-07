@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Opcional: Reset básico */
+body {
+  background-color: #f3f4f6;
+  font-family: 'Inter', sans-serif;
+}
