@@ -2,16 +2,25 @@ import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, // Novo
+  createUserWithEmailAndPassword, 
   signOut,
-  updateProfile
+  updateProfile,
+  onAuthStateChanged
 } from "firebase/auth";
 import { 
   getFirestore, 
   doc, 
   getDoc, 
   setDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  runTransaction,
+  updateDoc
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -27,37 +36,50 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Login
-export const loginEmailPassword = async (email, password) => {
-  return await signInWithEmailAndPassword(auth, email, password);
+// --- AUTHENTICATION SERVICES ---
+
+export const loginUser = (email, password) => {
+  return signInWithEmailAndPassword(auth, email, password);
 };
 
-// Registro (Novo: Cria Auth + Perfil no Firestore com Role)
-export const registerUser = async (email, password, name, role) => {
+export const registerUser = async (email, password, name, role, pixKey, socialHandle) => {
   try {
-    // 1. Criar Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    // 2. Atualizar Nome
+    // 1. Auth Creation
+    const { user } = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(user, { displayName: name });
 
-    // 3. Criar Documento no Firestore
+    // 2. Database Profile Creation
     await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
       email: user.email,
       displayName: name,
-      role: role, // 'advertiser' ou 'clipper'
-      balance: role === 'advertiser' ? 1000 : 0, // Bônus inicial para testar
-      createdAt: serverTimestamp()
+      role: role, // 'advertiser' | 'clipper'
+      pixKey: pixKey,
+      socialHandle: socialHandle, // @instagram
+      balance: role === 'advertiser' ? 2000 : 0, // Bônus inicial para testes
+      reputationScore: 100, // Gamification futuro
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
+
+    // 3. Welcome Transaction (Bonus)
+    if (role === 'advertiser') {
+        await addDoc(collection(db, "transactions"), {
+            userId: user.uid,
+            type: 'deposit',
+            amount: 2000,
+            description: 'Bônus de Boas Vindas',
+            date: serverTimestamp()
+        });
+    }
 
     return user;
   } catch (error) {
-    console.error("Erro no registro:", error);
+    console.error("Registration Error:", error);
     throw error;
   }
 };
 
-export const logout = () => signOut(auth);
+export const logoutUser = () => signOut(auth);
 
 export { auth, db };
