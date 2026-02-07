@@ -125,15 +125,17 @@ const Login = () => {
   );
 };
 
+// Certifique-se de que 'setDoc' e 'doc' estão importados do firebase/firestore lá no topo do arquivo!
+
 const UserDashboard = () => {
   const { user, userData } = useAuth();
   const [videoLink, setVideoLink] = useState('');
   const [claimedViews, setClaimedViews] = useState('');
   const [submissions, setSubmissions] = useState([]);
 
+  // Carregar envios
   useEffect(() => {
     if (!user) return;
-    // Query segura: Se falhar (falta de index), não quebra a tela
     try {
         const q = query(collection(db, "submissions"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
         const unsub = onSnapshot(q, (snapshot) => {
@@ -146,6 +148,27 @@ const UserDashboard = () => {
         console.error("Erro na query:", e);
     }
   }, [user]);
+
+  // --- NOVA FUNÇÃO: SALVAR DADOS NO BANCO MANUALMENTE ---
+  const handleForceSaveProfile = async () => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, {
+        email: user.email,
+        role: 'user', // Cria como user padrão
+        balance: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true }); // merge: true evita apagar se já tiver algo
+      alert("✅ Perfil salvo no Banco de Dados! Agora você pode ir no Firebase Console e mudar a role para 'admin'.");
+      window.location.reload(); // Recarrega para pegar os dados novos
+    } catch (error) {
+      console.error(error);
+      alert("❌ Erro ao salvar: " + error.message + "\nVerifique as Regras (Rules) do Firestore.");
+    }
+  };
+  // -------------------------------------------------------
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -165,6 +188,91 @@ const UserDashboard = () => {
       alert("Erro ao enviar: " + error.message);
     }
   };
+
+  return (
+    <div className="min-h-screen bg-gray-100 pb-10">
+      <header className="bg-white shadow p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <h1 className="font-bold text-gray-800 text-xl">Painel do Creator</h1>
+        
+        <div className="flex flex-wrap items-center gap-4">
+            {/* BOTÃO DE EMERGÊNCIA */}
+            <button 
+              onClick={handleForceSaveProfile}
+              className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded border border-yellow-300 text-sm font-bold hover:bg-yellow-200"
+            >
+              🛠️ Salvar Meu Perfil no BD
+            </button>
+
+            <span className="text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                Saldo: R$ {userData?.balance?.toFixed(2) || '0.00'}
+            </span>
+            <button onClick={logout} className="text-red-500 hover:bg-red-50 p-2 rounded-full">
+                <LogOut size={20}/>
+            </button>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto p-4 mt-6 grid gap-6 md:grid-cols-3">
+        {/* Formulário de Envio */}
+        <div className="md:col-span-1 bg-white p-6 rounded-lg shadow h-fit">
+            <h2 className="font-bold mb-4 flex items-center gap-2"><Upload size={18}/> Novo Envio</h2>
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <input 
+                  type="url" 
+                  placeholder="Link do TikTok/Reels" 
+                  className="w-full border p-2 rounded focus:ring-2 focus:ring-purple-500 outline-none" 
+                  value={videoLink} 
+                  onChange={e=>setVideoLink(e.target.value)} 
+                  required 
+                />
+                <input 
+                  type="number" 
+                  placeholder="Visualizações" 
+                  className="w-full border p-2 rounded focus:ring-2 focus:ring-purple-500 outline-none" 
+                  value={claimedViews} 
+                  onChange={e=>setClaimedViews(e.target.value)} 
+                  required 
+                />
+                <button className="w-full bg-purple-600 hover:bg-purple-700 transition text-white p-2 rounded font-bold">
+                  Enviar
+                </button>
+            </form>
+        </div>
+
+        {/* Histórico */}
+        <div className="md:col-span-2 bg-white p-6 rounded-lg shadow overflow-hidden">
+            <h2 className="font-bold mb-4">Histórico</h2>
+            <div className="overflow-y-auto max-h-[500px]">
+                {submissions.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">Nenhum envio realizado.</p>
+                ) : (
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-500">
+                            <tr>
+                              <th className="p-2">Data</th>
+                              <th className="p-2">Views</th>
+                              <th className="p-2">R$</th>
+                              <th className="p-2">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {submissions.map(sub => (
+                                <tr key={sub.id}>
+                                    <td className="p-2 text-gray-500">{sub.createdAt?.toDate().toLocaleDateString() || '-'}</td>
+                                    <td className="p-2 font-mono">{sub.claimedViews}</td>
+                                    <td className="p-2 text-green-600 font-bold">{sub.rewardAmount > 0 ? `R$ ${sub.rewardAmount.toFixed(2)}` : '-'}</td>
+                                    <td className="p-2"><StatusBadge status={sub.status}/></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+      </main>
+    </div>
+  );
+};
 
   return (
     <div className="min-h-screen bg-gray-100">
