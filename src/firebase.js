@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
-  signInWithEmailAndPassword, // Mudança aqui
+  signInWithEmailAndPassword, 
   signOut 
 } from "firebase/auth";
 import { 
@@ -21,35 +21,31 @@ const firebaseConfig = {
   appId: "1:712833600204:web:764c546d76a060eeb81069"
 };
 
+// Inicializa Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Nova função de Login
+// Função de Login Email/Senha
 export const loginEmailPassword = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-
-    // Verificar se o documento do usuário existe no Firestore, se não, cria
-    const userRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(userRef);
-
-    if (!docSnap.exists()) {
-      await setDoc(userRef, {
-        email: user.email,
-        role: 'user', // Padrão é user
-        balance: 0,
-        createdAt: serverTimestamp()
-      });
-    }
-    
     return user;
   } catch (error) {
-    throw error; // Repassa o erro para o front mostrar o alerta
+    console.error("Erro no login Firebase:", error);
+    throw error;
   }
 };
 
-export const logout = () => signOut(auth);
+// Função de Logout
+export const logout = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Erro ao sair:", error);
+  }
+};
 
-export { auth, db };
+// Exportações essenciais
+export { auth, db, app };
