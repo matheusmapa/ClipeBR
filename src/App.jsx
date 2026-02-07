@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, orderBy, onSnapshot, 
   doc, updateDoc, serverTimestamp, runTransaction, getDoc, setDoc 
 } from 'firebase/firestore';
-import { auth, db, loginGoogle, logout } from './firebase';
+import { auth, db, loginEmailPassword, logout } from './firebase';
 import { 
   Video, DollarSign, CheckCircle, XCircle, Clock, 
   LogOut, Upload, ShieldCheck, User 
